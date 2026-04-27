@@ -1,0 +1,65 @@
+name: Mongo Log Analyzer CI/CD
+
+on:
+  pull_request:
+  push:
+    branches: [ "main" ]
+
+jobs:
+
+  Build_Test:
+    runs-on: ubuntu-latest
+
+    services:
+      mongo:
+        image: mongo:6
+        ports:
+          - 27017:27017
+
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v4
+
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+
+    - name: Install deps
+      run: pip install -r requirements.txt
+
+    - name: Wait for Mongo
+      run: sleep 5
+
+    - name: Run tests
+      run: pytest -v
+
+    - name: Generate report
+      run: |
+        python analyzer.py > report.txt
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: report
+        path: report.txt
+
+
+  Build_Deploy:
+    needs: Build_Test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Simulate deployment
+      run: |
+        mkdir release
+        echo "Deployment completed at $(date)" > release/deploy.txt
+
+    - name: Upload release
+      uses: actions/upload-artifact@v4
+      with:
+        name: release
+        path: release/
